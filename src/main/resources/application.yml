@@ -1,0 +1,82 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+  cloud:
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: "bidmart-b15.vercel.app"
+                allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+                allowedHeaders: "*"
+                allowCredentials: true
+          routes:
+            - id: block-internal
+              uri: no://op
+              predicates:
+                - Path=/internal/**, /api/dev/**
+              filters:
+                - SetStatus=403
+
+            - id: bidmart-authentication
+              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/auth/**, /api/users/**, /api/admin/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                - JwtAuthenticationFilter
+
+            - id: bidmart-catalog
+              uri: ${CATALOG_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/listings/**, /api/categories/**, /listings/**
+              filters:
+                - JwtAuthenticationFilter
+
+            - id: bidmart-auction
+              uri: ${AUCTION_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/auctions/**
+              filters:
+                - JwtAuthenticationFilter
+
+            - id: bidmart-wallet
+              uri: ${WALLET_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/wallet/**
+              filters:
+                - JwtAuthenticationFilter
+
+            - id: bidmart-booking
+              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/bookings/**, /api/notifications/**
+              filters:
+                - JwtAuthenticationFilter
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+jwt:
+  secret: ${JWT_SECRET:"KUNCI_RAHASIA_JWT_YANG_SANGAT_PANJANG_DAN_AMAN_MINIMAL_256_BIT"}
