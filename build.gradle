@@ -39,11 +39,3 @@ dependencyManagement {
 tasks.named('test') {
     useJUnitPlatform()
 }
-
-tasks.named('processAot') {
-    enabled = false
-}
-
-tasks.named('processTestAot') {
-    enabled = false
-}
