@@ -44,3 +44,11 @@ tasks.named('test') {
 tasks.named('processTestAot') {
     enabled = false
 }
+
+sonar {
+    properties {
+        property "sonar.projectKey", "advprog-2026-B15-project_bidmart-gateway"
+        property "sonar.organization", "advprog-2026-b15-project"
+        property "sonar.host.url", "https://sonarcloud.io"
+    }
+}
