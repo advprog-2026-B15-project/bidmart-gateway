@@ -1,0 +1,26 @@
+name: Deploy to Infra Server
+
+on:
+  workflow_run:
+    workflows:
+      - "Build and Push Docker Image"
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy-infra:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Deploy to EC2 via bidmart-infra
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.INFRA_EC2_HOST }}
+          username: ${{ secrets.INFRA_EC2_USERNAME }}
+          key: ${{ secrets.INFRA_EC2_SSH_KEY }}
+          script: |
+            cd ~/bidmart-infra
+            ./deploy.sh
