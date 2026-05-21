@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:8088}
 
 spring:
   application:
@@ -15,7 +15,7 @@ spring:
           globalcors:
             cors-configurations:
               '[/**]':
-                allowedOrigins: "bidmart-b15.vercel.app"
+                allowedOrigins: "https://bidmart-b15.vercel.app"
                 allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
                 allowedHeaders: "*"
                 allowCredentials: true
@@ -23,7 +23,7 @@ spring:
             - id: block-internal
               uri: no://op
               predicates:
-                - Path=/internal/**, /api/dev/**
+                - Path=/internal/**, /api/dev/**, /api/listings/*/current-price, /api/listings/*/validate
               filters:
                 - SetStatus=403
 
@@ -36,6 +36,7 @@ spring:
                   args:
                     redis-rate-limiter.replenishRate: 10
                     redis-rate-limiter.burstCapacity: 20
+                    key-resolver: "#{@ipKeyResolver}"
                 - JwtAuthenticationFilter
 
             - id: bidmart-catalog
@@ -50,6 +51,11 @@ spring:
               predicates:
                 - Path=/api/auctions/**
               filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    key-resolver: "#{@ipKeyResolver}"
                 - JwtAuthenticationFilter
 
             - id: bidmart-wallet
@@ -60,7 +66,7 @@ spring:
                 - JwtAuthenticationFilter
 
             - id: bidmart-booking
-              uri: ${NOTIFICATION_SERVICE_URL:http://localhost:8085}
+              uri: ${BOOKING_SERVICE_URL:http://localhost:8085}
               predicates:
                 - Path=/api/bookings/**, /api/notifications/**
               filters:
@@ -79,4 +85,4 @@ management:
       application: ${spring.application.name}
 
 jwt:
-  secret: ${JWT_SECRET:"KUNCI_RAHASIA_JWT_YANG_SANGAT_PANJANG_DAN_AMAN_MINIMAL_256_BIT"}
+  secret: ${JWT_SECRET:IniRahasiaBidMartYangSangatPanjangSekali32Karakter}

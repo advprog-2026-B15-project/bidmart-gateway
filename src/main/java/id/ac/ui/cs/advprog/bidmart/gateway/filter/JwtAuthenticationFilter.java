@@ -1,8 +1,12 @@
 package id.ac.ui.cs.advprog.bidmart.gateway.filter;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -18,10 +22,11 @@ import reactor.core.publisher.Mono;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.function.Predicate;
 
 @Component
 public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAuthenticationFilter.Config> {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -46,53 +51,73 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
     public GatewayFilter apply(Config config) {
         return (ServerWebExchange exchange, GatewayFilterChain chain) -> {
             ServerHttpRequest request = exchange.getRequest();
+            String path = request.getURI().getPath();
+            String method = request.getMethod().name();
 
-            if (isSecured.test(request)) {
-                if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
-                    return onError(exchange, HttpStatus.UNAUTHORIZED);
-                }
-
-                String authHeader = request.getHeaders().getOrEmpty(HttpHeaders.AUTHORIZATION).getFirst();
-                if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                    authHeader = authHeader.substring(7);
-                } else {
-                    return onError(exchange, HttpStatus.UNAUTHORIZED);
-                }
-
-                try {
-                    SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-                    Claims claims = Jwts.parser()
-                            .verifyWith(key)
-                            .build()
-                            .parseSignedClaims(authHeader)
-                            .getPayload();
-
-                    String userId = claims.getSubject();
-                    String role = claims.get("role", String.class);
-
-                    request = exchange.getRequest().mutate()
-                            .header("X-User-Id", userId)
-                            .header("X-User-Role", role)
-                            .build();
-
-                } catch (Exception e) {
-                    return onError(exchange, HttpStatus.UNAUTHORIZED);
-                }
+            if (!isSecured(path, method)) {
+                log.info("[JWT] BYPASS: {} {} -> endpoint publik, tidak perlu autentikasi.", method, path);
+                return chain.filter(exchange);
             }
-            return chain.filter(exchange.mutate().request(request).build());
+
+            log.debug("[JWT] SECURED: {} {} -> memerlukan autentikasi JWT.", method, path);
+
+            if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
+                log.warn("[JWT] DITOLAK: {} {} -> tidak ada header 'Authorization'.", method, path);
+                return onError(exchange, HttpStatus.UNAUTHORIZED);
+            }
+
+            String authHeader = request.getHeaders().getOrEmpty(HttpHeaders.AUTHORIZATION).getFirst();
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                log.warn("[JWT] DITOLAK: {} {} -> header Authorization ada, tapi formatnya bukan 'Bearer <token>'. Nilai: '{}'",
+                        method, path, authHeader);
+                return onError(exchange, HttpStatus.UNAUTHORIZED);
+            }
+
+            String token = authHeader.substring(7);
+
+            try {
+                SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+                Claims claims = Jwts.parser()
+                        .verifyWith(key)
+                        .build()
+                        .parseSignedClaims(token)
+                        .getPayload();
+
+                String userId = claims.getSubject();
+                String role = claims.get("role", String.class);
+
+                log.info("[JWT] DITERIMA: {} {} -> userId='{}', role='{}'.", method, path, userId, role);
+
+                ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                        .header("X-User-Id", userId)
+                        .header("X-User-Role", role != null ? role : "")
+                        .build();
+
+                return chain.filter(exchange.mutate().request(mutatedRequest).build());
+
+            } catch (ExpiredJwtException e) {
+                log.warn("[JWT] DITOLAK: {} {} -> token sudah kadaluarsa (expired). Detail: {}", method, path, e.getMessage());
+                return onError(exchange, HttpStatus.UNAUTHORIZED);
+
+            } catch (JwtException e) {
+                log.warn("[JWT] DITOLAK: {} {} -> token tidak valid / signature salah. Detail: {}", method, path, e.getMessage());
+                return onError(exchange, HttpStatus.UNAUTHORIZED);
+
+            } catch (Exception e) {
+                log.error("[JWT] ERROR: {} {} -> terjadi error tak terduga saat memproses token. Detail: {}", method, path, e.getMessage());
+                return onError(exchange, HttpStatus.INTERNAL_SERVER_ERROR);
+            }
         };
     }
 
-    private final Predicate<ServerHttpRequest> isSecured = request -> {
-        String path = request.getURI().getPath();
-        String method = request.getMethod().name();
-
-        if (method.equals("GET") && (path.startsWith("/api/listings") || path.startsWith("/api/auctions"))) {
+    private boolean isSecured(String path, String method) {
+        if ("GET".equals(method)
+                && (path.startsWith("/api/listings") || path.startsWith("/api/auctions"))) {
             return false;
         }
 
-        return openApiEndpoints.stream().noneMatch(path::contains);
-    };
+        return openApiEndpoints.stream().noneMatch(path::startsWith);
+    }
 
     private Mono<Void> onError(ServerWebExchange exchange, HttpStatus httpStatus) {
         ServerHttpResponse response = exchange.getResponse();
