@@ -1,0 +1,88 @@
+server:
+  port: ${SERVER_PORT:8088}
+
+spring:
+  application:
+    name: gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+  cloud:
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOrigins: "https://bidmart-b15.vercel.app"
+                allowedMethods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+                allowedHeaders: "*"
+                allowCredentials: true
+          routes:
+            - id: block-internal
+              uri: no://op
+              predicates:
+                - Path=/internal/**, /api/dev/**, /api/listings/*/current-price, /api/listings/*/validate
+              filters:
+                - SetStatus=403
+
+            - id: bidmart-authentication
+              uri: ${AUTH_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/auth/**, /api/users/**, /api/admin/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    key-resolver: "#{@ipKeyResolver}"
+                - JwtAuthenticationFilter
+
+            - id: bidmart-catalog
+              uri: ${CATALOG_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/listings/**, /api/categories/**, /listings/**
+              filters:
+                - JwtAuthenticationFilter
+
+            - id: bidmart-auction
+              uri: ${AUCTION_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/auctions/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 20
+                    redis-rate-limiter.burstCapacity: 40
+                    key-resolver: "#{@ipKeyResolver}"
+                - JwtAuthenticationFilter
+
+            - id: bidmart-wallet
+              uri: ${WALLET_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/wallet/**
+              filters:
+                - JwtAuthenticationFilter
+
+            - id: bidmart-booking
+              uri: ${BOOKING_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/bookings/**, /api/notifications/**
+              filters:
+                - JwtAuthenticationFilter
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+jwt:
+  secret: ${JWT_SECRET:IniRahasiaBidMartYangSangatPanjangSekali32Karakter}
