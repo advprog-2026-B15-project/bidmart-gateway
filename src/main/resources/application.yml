@@ -39,6 +39,11 @@ spring:
                     key-resolver: "#{@ipKeyResolver}"
                 - JwtAuthenticationFilter
 
+            - id: bidmart-catalog-images
+              uri: ${CATALOG_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/uploads/**
+
             - id: bidmart-catalog
               uri: ${CATALOG_SERVICE_URL:http://localhost:8082}
               predicates:
