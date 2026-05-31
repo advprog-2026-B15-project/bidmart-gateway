@@ -78,10 +78,13 @@ spring:
                 - JwtAuthenticationFilter
 
 management:
+  server:
+    port: 9090
+    address: 127.0.0.1
   endpoints:
     web:
       exposure:
-        include: health, info, prometheus
+        include: health, info, prometheus, gateway, refresh
   endpoint:
     prometheus:
       enabled: true
