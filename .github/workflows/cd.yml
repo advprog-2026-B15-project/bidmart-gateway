@@ -46,4 +46,39 @@ jobs:
           docker build -t ghcr.io/$REPO_LOWER:latest .
           docker push ghcr.io/$REPO_LOWER:latest
 
-
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Gateway EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_GATEWAY_HOST }}
+          username: ${{ secrets.EC2_GATEWAY_USERNAME }}
+          key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
+          script: |
+            echo "Pulling latest image..."
+            docker pull ghcr.io/${{ github.repository }}:latest
+            
+            # Jika kamu menggunakan docker-compose di folder bidmart-infra:
+            if [ -d "$HOME/bidmart-infra" ]; then
+              echo "Deploying via bidmart-infra docker-compose..."
+              cd $HOME/bidmart-infra
+              # Matikan container lama dan up yang baru
+              docker compose stop gateway || docker-compose stop gateway
+              docker compose rm -f gateway || docker-compose rm -f gateway
+              docker compose up -d gateway || docker-compose up -d gateway
+            else
+              # Jika menjalankan docker mandiri:
+              echo "Deploying via standalone docker run..."
+              docker stop bidmart-gateway || true
+              docker rm bidmart-gateway || true
+              docker run -d --name bidmart-gateway \
+                -p 8080:8080 \
+                -p 127.0.0.1:9090:9090 \
+                -e SPRING_PROFILES_ACTIVE=prod \
+                --restart always \
+                ghcr.io/${{ github.repository }}:latest
+            fi
+            
+            docker image prune -f
