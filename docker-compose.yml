@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: bidmart-redis
+    ports:
+      - "127.0.0.1:6379:6379" # Only accessible locally for security
+    restart: always
+
+  gateway:
+    image: ${GATEWAY_IMAGE:-ghcr.io/advprog-2026-b15-project/bidmart-gateway:latest}
+    container_name: bidmart-gateway
+    ports:
+      - "8080:8080"
+      - "127.0.0.1:9090:9090" # For blue-green switch traffic securely
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_DATA_REDIS_HOST=redis
+    depends_on:
+      - redis
+    restart: always

@@ -50,6 +50,18 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Copy docker-compose to Gateway EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_GATEWAY_HOST }}
+          username: ${{ secrets.EC2_GATEWAY_USERNAME }}
+          key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "~/"
+
       - name: Deploy to Gateway EC2
         uses: appleboy/ssh-action@master
         with:
@@ -57,17 +69,14 @@ jobs:
           username: ${{ secrets.EC2_GATEWAY_USERNAME }}
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           script: |
-            echo "Pulling latest image..."
-            docker pull ghcr.io/${{ github.repository }}:latest
+            export REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            echo "GATEWAY_IMAGE=ghcr.io/$REPO_LOWER:latest" > .env
             
-            echo "Deploying gateway..."
-            docker stop bidmart-gateway || true
-            docker rm bidmart-gateway || true
-            docker run -d --name bidmart-gateway \
-              -p 8080:8080 \
-              -p 127.0.0.1:9090:9090 \
-              -e SPRING_PROFILES_ACTIVE=prod \
-              --restart always \
-              ghcr.io/${{ github.repository }}:latest
-              
+            echo "Pulling latest images..."
+            docker compose pull
+            
+            echo "Starting Gateway and Redis..."
+            docker compose up -d
+            
+            echo "Cleaning up..."
             docker image prune -f
