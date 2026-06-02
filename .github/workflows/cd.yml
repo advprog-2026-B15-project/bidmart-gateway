@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Deploy to AWS EC2
 
 on:
   workflow_run:
@@ -60,25 +60,14 @@ jobs:
             echo "Pulling latest image..."
             docker pull ghcr.io/${{ github.repository }}:latest
             
-            # Jika kamu menggunakan docker-compose di folder bidmart-infra:
-            if [ -d "$HOME/bidmart-infra" ]; then
-              echo "Deploying via bidmart-infra docker-compose..."
-              cd $HOME/bidmart-infra
-              # Matikan container lama dan up yang baru
-              docker compose stop gateway || docker-compose stop gateway
-              docker compose rm -f gateway || docker-compose rm -f gateway
-              docker compose up -d gateway || docker-compose up -d gateway
-            else
-              # Jika menjalankan docker mandiri:
-              echo "Deploying via standalone docker run..."
-              docker stop bidmart-gateway || true
-              docker rm bidmart-gateway || true
-              docker run -d --name bidmart-gateway \
-                -p 8080:8080 \
-                -p 127.0.0.1:9090:9090 \
-                -e SPRING_PROFILES_ACTIVE=prod \
-                --restart always \
-                ghcr.io/${{ github.repository }}:latest
-            fi
-            
+            echo "Deploying gateway..."
+            docker stop bidmart-gateway || true
+            docker rm bidmart-gateway || true
+            docker run -d --name bidmart-gateway \
+              -p 8080:8080 \
+              -p 127.0.0.1:9090:9090 \
+              -e SPRING_PROFILES_ACTIVE=prod \
+              --restart always \
+              ghcr.io/${{ github.repository }}:latest
+              
             docker image prune -f
