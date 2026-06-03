@@ -40,7 +40,6 @@ jobs:
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           source: "build/libs/gateway-0.0.1-SNAPSHOT.jar"
           target: "~/"
-          strip_components: 2
 
       - name: Execute Deployment on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -57,7 +56,7 @@ jobs:
             docker rm -f bidmart-gateway || true
 
             echo "3. Build image Docker baru dari JAR"
-            # Karena nama di Dockerfile adalah gateway-*.jar, kita bisa langsung pakai
+            mv ~/build/libs/gateway-0.0.1-SNAPSHOT.jar ~/ || true
             docker build -t bidmart-gateway -f ~/Dockerfile-gateway ~/
 
             echo "4. Jalankan Gateway baru"
@@ -71,4 +70,5 @@ jobs:
 
             echo "5. Bersihkan file instalasi & image bekas agar RAM/Disk aman"
             rm ~/gateway-0.0.1-SNAPSHOT.jar || true
+            rm -rf ~/build || true
             docker image prune -f
