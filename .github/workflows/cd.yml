@@ -1,0 +1,74 @@
+name: Continuous Deployment (Gateway)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build JAR with Gradle
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean bootJar
+
+      - name: Copy Dockerfile to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_GATEWAY_HOST }}
+          username: ${{ secrets.EC2_GATEWAY_USERNAME }}
+          key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
+          source: "Dockerfile-gateway"
+          target: "~/"
+
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_GATEWAY_HOST }}
+          username: ${{ secrets.EC2_GATEWAY_USERNAME }}
+          key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
+          source: "build/libs/gateway-0.0.1-SNAPSHOT.jar"
+          target: "~/"
+          strip_components: 2
+
+      - name: Execute Deployment on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_GATEWAY_HOST }}
+          username: ${{ secrets.EC2_GATEWAY_USERNAME }}
+          key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
+          script: |
+            echo "1. Memastikan Network dan Redis menyala (Abaikan jika sudah ada)"
+            docker network create bidmart-net || true
+            docker run -d --name bidmart-redis --network bidmart-net -p 6379:6379 redis:alpine || docker start bidmart-redis || true
+
+            echo "2. Hapus container Gateway lama"
+            docker rm -f bidmart-gateway || true
+
+            echo "3. Build image Docker baru dari JAR"
+            # Karena nama di Dockerfile adalah gateway-*.jar, kita bisa langsung pakai
+            docker build -t bidmart-gateway -f ~/Dockerfile-gateway ~/
+
+            echo "4. Jalankan Gateway baru"
+            docker run -d \
+              --name bidmart-gateway \
+              -p 8088:8088 \
+              --network bidmart-net \
+              -e REDIS_HOST=bidmart-redis \
+              --restart always \
+              bidmart-gateway
+
+            echo "5. Bersihkan file instalasi & image bekas agar RAM/Disk aman"
+            rm ~/gateway-0.0.1-SNAPSHOT.jar || true
+            docker image prune -f
