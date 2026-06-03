@@ -63,6 +63,7 @@ jobs:
             docker run -d \
               --name bidmart-gateway \
               -p 8088:8088 \
+              -p 9090:9090 \
               --network bidmart-net \
               -e SPRING_PROFILES_ACTIVE=prod \
               -e REDIS_HOST=bidmart-redis \
