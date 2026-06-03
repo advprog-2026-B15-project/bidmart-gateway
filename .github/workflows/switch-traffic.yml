@@ -20,7 +20,7 @@ jobs:
           script: |
             curl -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
               -H "Content-Type: application/json" \
-              -d '{"uri": "http://${{ secrets.IP_EC2_GREEN }}:8083", "predicates": [{"name": "Path", "args": {"pattern": "/api/auctions/**"}}], "filters": [{"name": "RequestRateLimiter", "args": {"redis-rate-limiter.replenishRate": "20", "redis-rate-limiter.burstCapacity": "40", "key-resolver": "#{@ipKeyResolver}"}}, {"name": "JwtAuthenticationFilter"}]}'
+              -d '{"uri": "http://${{ secrets.IP_EC2_GREEN }}:8083", "predicates": [{"name": "Path", "args": {"pattern": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
             curl -X POST http://127.0.0.1:9090/actuator/gateway/refresh
 
       - name: Switch Traffic to BLUE
@@ -33,5 +33,5 @@ jobs:
           script: |
             curl -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
               -H "Content-Type: application/json" \
-              -d '{"uri": "http://${{ secrets.IP_EC2_BLUE }}:8083", "predicates": [{"name": "Path", "args": {"pattern": "/api/auctions/**"}}], "filters": [{"name": "RequestRateLimiter", "args": {"redis-rate-limiter.replenishRate": "20", "redis-rate-limiter.burstCapacity": "40", "key-resolver": "#{@ipKeyResolver}"}}, {"name": "JwtAuthenticationFilter"}]}'
+              -d '{"uri": "http://${{ secrets.IP_EC2_BLUE }}:8083", "predicates": [{"name": "Path", "args": {"pattern": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
             curl -X POST http://127.0.0.1:9090/actuator/gateway/refresh

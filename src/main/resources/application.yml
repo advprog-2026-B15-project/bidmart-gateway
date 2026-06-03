@@ -32,11 +32,6 @@ spring:
               predicates:
                 - Path=/api/auth/**, /api/users/**, /api/admin/**
               filters:
-                - name: RequestRateLimiter
-                  args:
-                    redis-rate-limiter.replenishRate: 10
-                    redis-rate-limiter.burstCapacity: 20
-                    key-resolver: "#{@ipKeyResolver}"
                 - JwtAuthenticationFilter
 
             - id: bidmart-catalog-images
@@ -56,11 +51,6 @@ spring:
               predicates:
                 - Path=/api/auctions/**
               filters:
-                - name: RequestRateLimiter
-                  args:
-                    redis-rate-limiter.replenishRate: 20
-                    redis-rate-limiter.burstCapacity: 40
-                    key-resolver: "#{@ipKeyResolver}"
                 - JwtAuthenticationFilter
 
             - id: bidmart-wallet
