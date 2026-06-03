@@ -64,7 +64,14 @@ jobs:
               --name bidmart-gateway \
               -p 8088:8088 \
               --network bidmart-net \
+              -e SPRING_PROFILES_ACTIVE=prod \
               -e REDIS_HOST=bidmart-redis \
+              -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
+              -e AUTH_SERVICE_URL='${{ secrets.AUTH_SERVICE_URL }}' \
+              -e CATALOG_SERVICE_URL='${{ secrets.CATALOG_SERVICE_URL }}' \
+              -e AUCTION_SERVICE_URL='${{ secrets.AUCTION_SERVICE_URL }}' \
+              -e WALLET_SERVICE_URL='${{ secrets.WALLET_SERVICE_URL }}' \
+              -e BOOKING_SERVICE_URL='${{ secrets.BOOKING_SERVICE_URL }}' \
               --restart always \
               bidmart-gateway
 
