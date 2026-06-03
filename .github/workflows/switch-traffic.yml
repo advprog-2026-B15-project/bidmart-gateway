@@ -18,10 +18,10 @@ jobs:
           username: ${{ secrets.EC2_GATEWAY_USERNAME }}
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           script: |
-            curl --retry 5 --retry-all-errors --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
+            curl --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
               -H "Content-Type: application/json" \
               -d '{"uri": "http://${{ secrets.IP_EC2_GREEN }}:8083", "predicates": [{"name": "Path", "args": {"pattern": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
-            curl --retry 5 --retry-all-errors --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
+            curl --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
 
       - name: Switch Traffic to BLUE
         if: github.event.action == 'switch-to-blue'
@@ -31,7 +31,7 @@ jobs:
           username: ${{ secrets.EC2_GATEWAY_USERNAME }}
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           script: |
-            curl --retry 5 --retry-all-errors --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
+            curl --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
               -H "Content-Type: application/json" \
               -d '{"uri": "http://${{ secrets.IP_EC2_BLUE }}:8083", "predicates": [{"name": "Path", "args": {"pattern": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
-            curl --retry 5 --retry-all-errors --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
+            curl --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
