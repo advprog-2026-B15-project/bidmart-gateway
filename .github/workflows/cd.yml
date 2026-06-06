@@ -65,7 +65,6 @@ jobs:
           envs: DYNAMIC_AUCTION_URL
           script: |
             echo "1. Persiapan Deployment"
-            # Network dan Redis lokal sudah dihapus karena Gateway sekarang stateless
 
             echo "2. Hapus container Gateway lama"
             docker rm -f bidmart-gateway || true

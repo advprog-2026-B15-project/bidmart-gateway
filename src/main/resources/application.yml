@@ -78,6 +78,8 @@ management:
   endpoint:
     prometheus:
       enabled: true
+    gateway:
+      enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
