@@ -36,6 +36,9 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_GREEN }}", "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
             curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
+            
+            echo "--- DEBUG: CURRENT ACTIVE ROUTES ---"
+            curl -s http://127.0.0.1:9090/actuator/gateway/routes | grep bidmart-auction || true
 
       - name: Switch Traffic to BLUE
         if: github.event.action == 'switch-to-blue' || github.event.inputs.target == 'switch-to-blue'
@@ -53,3 +56,6 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_BLUE }}", "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
             curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
+            
+            echo "--- DEBUG: CURRENT ACTIVE ROUTES ---"
+            curl -s http://127.0.0.1:9090/actuator/gateway/routes | grep bidmart-auction || true
