@@ -28,14 +28,16 @@ jobs:
           username: ${{ secrets.EC2_GATEWAY_USERNAME }}
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           script: |
+            GATEWAY_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' bidmart-gateway)
+            
             echo "Waiting for Gateway to be healthy..."
-            for i in {1..10}; do curl -s http://127.0.0.1:9090/actuator/health && break || sleep 3; done
+            for i in {1..10}; do curl -s http://$GATEWAY_IP:9090/actuator/health && break || sleep 3; done
             
             echo "Switching traffic to GREEN..."
-            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://$GATEWAY_IP:9090/actuator/gateway/routes/bidmart-auction \
               -H "Content-Type: application/json" \
               -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_GREEN }}", "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
-            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://$GATEWAY_IP:9090/actuator/gateway/refresh
 
       - name: Switch Traffic to BLUE
         if: github.event.action == 'switch-to-blue' || github.event.inputs.target == 'switch-to-blue'
@@ -45,11 +47,13 @@ jobs:
           username: ${{ secrets.EC2_GATEWAY_USERNAME }}
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           script: |
+            GATEWAY_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' bidmart-gateway)
+            
             echo "Waiting for Gateway to be healthy..."
-            for i in {1..10}; do curl -s http://127.0.0.1:9090/actuator/health && break || sleep 3; done
+            for i in {1..10}; do curl -s http://$GATEWAY_IP:9090/actuator/health && break || sleep 3; done
 
             echo "Switching traffic to BLUE..."
-            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://$GATEWAY_IP:9090/actuator/gateway/routes/bidmart-auction \
               -H "Content-Type: application/json" \
               -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_BLUE }}", "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
-            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://$GATEWAY_IP:9090/actuator/gateway/refresh

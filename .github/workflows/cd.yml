@@ -64,9 +64,8 @@ jobs:
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           envs: DYNAMIC_AUCTION_URL
           script: |
-            echo "1. Network & Redis lokal (untuk Rate Limiting jika dipakai di masa depan)"
-            docker network create bidmart-net || true
-            docker run -d --name bidmart-redis --network bidmart-net -p 6379:6379 redis:alpine || docker start bidmart-redis || true
+            echo "1. Persiapan Deployment"
+            # Network dan Redis lokal sudah dihapus karena Gateway sekarang stateless
 
             echo "2. Hapus container Gateway lama"
             docker rm -f bidmart-gateway || true
@@ -80,9 +79,7 @@ jobs:
               --name bidmart-gateway \
               -p 8088:8088 \
               -p 9090:9090 \
-              --network bidmart-net \
               -e SPRING_PROFILES_ACTIVE=prod \
-              -e REDIS_HOST=bidmart-redis \
               -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
               -e AUTH_SERVICE_URL='${{ secrets.AUTH_SERVICE_URL }}' \
               -e CATALOG_SERVICE_URL='${{ secrets.CATALOG_SERVICE_URL }}' \

@@ -5,6 +5,6 @@ WORKDIR /app
 COPY build/libs/gateway-*.jar app.jar
 
 # Expose default Spring Boot Port
-EXPOSE 8080
+EXPOSE 8088
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
