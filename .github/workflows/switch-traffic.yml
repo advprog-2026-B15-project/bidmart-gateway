@@ -5,33 +5,51 @@ on:
     types: 
       - switch-to-green
       - switch-to-blue
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target Deployment (switch-to-blue / switch-to-green)'
+        required: true
+        default: 'switch-to-green'
+        type: choice
+        options:
+          - switch-to-green
+          - switch-to-blue
 
 jobs:
   switch-traffic:
     runs-on: ubuntu-latest
     steps:
       - name: Switch Traffic to GREEN
-        if: github.event.action == 'switch-to-green'
+        if: github.event.action == 'switch-to-green' || github.event.inputs.target == 'switch-to-green'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_GATEWAY_HOST }}
           username: ${{ secrets.EC2_GATEWAY_USERNAME }}
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           script: |
-            curl --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
+            echo "Waiting for Gateway to be healthy..."
+            for i in {1..10}; do curl -s http://127.0.0.1:9090/actuator/health && break || sleep 3; done
+            
+            echo "Switching traffic to GREEN..."
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
               -H "Content-Type: application/json" \
-              -d '{"uri": "http://${{ secrets.IP_EC2_GREEN }}:8083", "predicates": [{"name": "Path", "args": {"pattern": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
-            curl --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
+              -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_GREEN }}", "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
 
       - name: Switch Traffic to BLUE
-        if: github.event.action == 'switch-to-blue'
+        if: github.event.action == 'switch-to-blue' || github.event.inputs.target == 'switch-to-blue'
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_GATEWAY_HOST }}
           username: ${{ secrets.EC2_GATEWAY_USERNAME }}
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
           script: |
-            curl --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
+            echo "Waiting for Gateway to be healthy..."
+            for i in {1..10}; do curl -s http://127.0.0.1:9090/actuator/health && break || sleep 3; done
+
+            echo "Switching traffic to BLUE..."
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
               -H "Content-Type: application/json" \
-              -d '{"uri": "http://${{ secrets.IP_EC2_BLUE }}:8083", "predicates": [{"name": "Path", "args": {"pattern": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
-            curl --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
+              -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_BLUE }}", "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh

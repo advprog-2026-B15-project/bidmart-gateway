@@ -18,6 +18,19 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Fetch Active Auction Environment
+        env:
+          GH_TOKEN: ${{ secrets.PAT_GITHUB }}
+        run: |
+          ACTIVE_ENV=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/advprog-2026-B15-project/bidmart-auction/actions/variables/ACTIVE_ENV | jq -r .value || echo "blue")
+          echo "Active env from Auction repo is: $ACTIVE_ENV"
+          
+          if [ "$ACTIVE_ENV" == "green" ]; then
+            echo "DYNAMIC_AUCTION_URL=${{ secrets.AUCTION_SERVICE_URL_GREEN }}" >> $GITHUB_ENV
+          else
+            echo "DYNAMIC_AUCTION_URL=${{ secrets.AUCTION_SERVICE_URL_BLUE }}" >> $GITHUB_ENV
+          fi
+
       - name: Build JAR with Gradle
         run: |
           chmod +x ./gradlew
@@ -43,12 +56,15 @@ jobs:
 
       - name: Execute Deployment on EC2
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          DYNAMIC_AUCTION_URL: ${{ env.DYNAMIC_AUCTION_URL }}
         with:
           host: ${{ secrets.EC2_GATEWAY_HOST }}
           username: ${{ secrets.EC2_GATEWAY_USERNAME }}
           key: ${{ secrets.EC2_GATEWAY_SSH_KEY }}
+          envs: DYNAMIC_AUCTION_URL
           script: |
-            echo "1. Memastikan Network dan Redis menyala (Abaikan jika sudah ada)"
+            echo "1. Network & Redis lokal (untuk Rate Limiting jika dipakai di masa depan)"
             docker network create bidmart-net || true
             docker run -d --name bidmart-redis --network bidmart-net -p 6379:6379 redis:alpine || docker start bidmart-redis || true
 
@@ -70,13 +86,20 @@ jobs:
               -e JWT_SECRET='${{ secrets.JWT_SECRET }}' \
               -e AUTH_SERVICE_URL='${{ secrets.AUTH_SERVICE_URL }}' \
               -e CATALOG_SERVICE_URL='${{ secrets.CATALOG_SERVICE_URL }}' \
-              -e AUCTION_SERVICE_URL='${{ secrets.AUCTION_SERVICE_URL }}' \
+              -e AUCTION_SERVICE_URL="$DYNAMIC_AUCTION_URL" \
               -e WALLET_SERVICE_URL='${{ secrets.WALLET_SERVICE_URL }}' \
               -e BOOKING_SERVICE_URL='${{ secrets.BOOKING_SERVICE_URL }}' \
               --restart always \
               bidmart-gateway
 
-            echo "5. Bersihkan file instalasi & image bekas agar RAM/Disk aman"
+            echo "5. Tunggu 5 detik untuk memastikan Gateway berjalan"
+            sleep 5
+            
+            echo "6. Cek status container dan logs"
+            docker ps | grep bidmart-gateway
+            docker logs --tail 50 bidmart-gateway
+            
+            echo "7. Bersihkan file instalasi & image bekas"
             rm /home/ubuntu/gateway-0.0.1-SNAPSHOT.jar || true
             rm -rf /home/ubuntu/build || true
             docker image prune -f
