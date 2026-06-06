@@ -32,13 +32,13 @@ jobs:
             for i in {1..10}; do curl -s http://127.0.0.1:9090/actuator/health && break || sleep 3; done
             
             echo "Switching traffic to GREEN..."
-            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction-dynamic \
               -H "Content-Type: application/json" \
-              -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_GREEN }}", "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
+              -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_GREEN }}", "order": -1, "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
             curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
             
             echo "--- DEBUG: CURRENT ACTIVE ROUTES ---"
-            curl -s http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction || true
+            curl -s http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction-dynamic || true
 
       - name: Switch Traffic to BLUE
         if: github.event.action == 'switch-to-blue' || github.event.inputs.target == 'switch-to-blue'
@@ -52,10 +52,10 @@ jobs:
             for i in {1..10}; do curl -s http://127.0.0.1:9090/actuator/health && break || sleep 3; done
 
             echo "Switching traffic to BLUE..."
-            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction \
+            curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction-dynamic \
               -H "Content-Type: application/json" \
-              -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_BLUE }}", "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
+              -d '{"uri": "${{ secrets.AUCTION_SERVICE_URL_BLUE }}", "order": -1, "predicates": [{"name": "Path", "args": {"_genkey_0": "/api/auctions/**"}}], "filters": [{"name": "JwtAuthenticationFilter"}]}'
             curl -v --retry 5 --retry-connrefused --retry-delay 5 -X POST http://127.0.0.1:9090/actuator/gateway/refresh
             
             echo "--- DEBUG: CURRENT ACTIVE ROUTES ---"
-            curl -s http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction || true
+            curl -s http://127.0.0.1:9090/actuator/gateway/routes/bidmart-auction-dynamic || true
