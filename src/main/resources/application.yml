@@ -74,9 +74,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, prometheus
+        include: health, info, prometheus, gateway, refresh
   endpoint:
     prometheus:
+      enabled: true
+    gateway:
       enabled: true
   metrics:
     tags:
